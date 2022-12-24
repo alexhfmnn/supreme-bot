@@ -33,8 +33,6 @@ options.add_experimental_option("useAutomationExtension", False)
 caps = DesiredCapabilities().CHROME
 caps["pageLoadStrategy"] = "eager"
 
-driver = webdriver.Chrome(desired_capabilities=caps, options=options, executable_path=ChromeOptions.CHROME_DRIVER_PATH)
-wait = WebDriverWait(driver, 10)
 session = requests.Session()
 
 
@@ -42,9 +40,6 @@ def get_new_items():
     """
     Get upcoming released items and return their names, colours and sizes as a table
     """
-
-    driver.close()
-    driver.quit()
 
     url = 'https://www.supremenewyork.com/mobile_stock.json'
 
@@ -67,7 +62,7 @@ def get_new_items():
 
         sizes = []
         for size in item_specs['styles'][0]['sizes']:
-            sizes.append(size['name'])
+            sizes.append(size['name'].strip())
         sizes = ", ".join(sizes)
         new_item.append(sizes)
 
@@ -156,7 +151,7 @@ def get_product(product_id, product_colour_id, size):
     wait.until(EC.element_to_be_clickable((By.ID, 'checkout-now')))
 
 
-def checkout():
+def checkout(driver):
     """
     Inputs checkout details
     """
@@ -176,6 +171,7 @@ def checkout():
         f'document.getElementById("credit_card_number").value="{PaymentDetails.CARD_NUMBER}";'
         f'document.getElementById("credit_card_cvv").value="{PaymentDetails.CVV}";'
     )
+    Select(driver.find_element_by_id('order_billing_country')).select_by_value(UserDetails.COUNTRY)
 
     card_month = Select(driver.find_element_by_id('credit_card_month'))
     card_month.select_by_value(str(PaymentDetails.EXP_MONTH))
@@ -190,18 +186,22 @@ def checkout():
 
 def close_driver():
     session.close()
-    driver.close()
+#    driver.close()
     driver.quit()
 
 
 def buy():
+    global driver, wait
+    driver = webdriver.Chrome(desired_capabilities=caps, options=options, executable_path=ChromeOptions.CHROME_DRIVER_PATH)
+    wait = WebDriverWait(driver, 10)
+
     if (ProductDetails.NEW):
         product_id = find_newitem_id(ProductDetails.KEYWORDS)
     else:
         product_id = find_item_id(ProductDetails.KEYWORDS)
     product_colour_id = find_item(product_id, ProductDetails.COLOUR, ProductDetails.SIZE)
     get_product(product_id, product_colour_id, ProductDetails.SIZE)
-    checkout()
+    checkout(driver)
 
 
 
